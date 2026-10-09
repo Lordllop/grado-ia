@@ -343,6 +343,16 @@
   .ex-row .time { font-family: "JetBrains Mono", monospace; font-size: .82rem; font-weight: 600; padding: 4px 8px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); }
   .ex-row.past { opacity: .5; }
 
+  /* Cuadernos IA */
+  .nb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .nb { display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 10px; align-items: start; padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+  .nb .n { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--c-violet-bg); color: var(--c-violet); font-weight: 800; font-size: .85rem; }
+  .nb .t { font-weight: 700; font-size: .9rem; line-height: 1.3; }
+  .nb .a { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .nb .a .btn { padding: 5px 10px; font-size: .8rem; }
+  .nb form { display: flex; gap: 6px; margin-top: 6px; }
+  .nb input { flex: 1; min-width: 0; font: inherit; font-size: .82rem; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+
   /* Interruptor */
   .switch { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 700; cursor: pointer; color: var(--text); position: relative; }
   .switch input { position: absolute; opacity: 0; pointer-events: none; }
@@ -386,7 +396,7 @@
   .prog { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 24px; align-items: center; margin-bottom: 18px; }
   .ring {
     width: 136px; height: 136px; border-radius: 50%; display: grid; place-items: center; position: relative;
-    background: conic-gradient(var(--c-green) 0 var(--a), var(--c-violet) var(--a) var(--b), var(--c-blue) var(--b) var(--c), var(--surface-2) var(--c) 100%);
+    background: conic-gradient(var(--c-green) 0 var(--a), var(--c-violet) var(--a) var(--b), var(--c-amber) var(--b) var(--p), var(--c-blue) var(--p) var(--c), var(--surface-2) var(--c) 100%);
   }
   .ring::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; background: var(--surface); }
   .ring b { position: relative; font-size: 1.7rem; font-weight: 800; line-height: 1; text-align: center; }
@@ -405,7 +415,7 @@
   #subjDlg { width: min(660px, calc(100vw - 24px)); }
   #subjDlg .dlg-body { max-height: calc(92vh - 170px); overflow: auto; gap: 18px; }
   .sj-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+  .seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
   .seg button { border: 0; background: transparent; border-radius: 9px; padding: 8px 6px; font-weight: 700; font-size: .8rem; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
   .seg button:hover { color: var(--text); }
   .seg button[aria-pressed="true"] { background: var(--sc); color: #fff; }
@@ -503,7 +513,6 @@
     .prog { grid-template-columns: 1fr; justify-items: center; }
     .prog > div:last-child { width: 100%; }
     .info-grid { grid-template-columns: 1fr; }
-    .seg { grid-template-columns: 1fr 1fr; }
     .calc-res { grid-template-columns: 1fr 1fr; }
     .crow { grid-template-columns: minmax(0,1fr) 54px 54px 40px 30px; gap: 4px; }
     .sems { grid-template-columns: 1fr; }
@@ -646,6 +655,17 @@
       </div>
       <div class="tt" id="tutGrid"></div>
       <p class="note">Aparecen en el calendario cada jueves del 15 de octubre al 21 de enero, sin las vacaciones de Navidad. Si marcas una asignatura como convalidada, su tutoría aparece tachada y deja de contar. Revisa en Akademos si alguna sesión cambia o se cancela.</p>
+    </div>
+  </section>
+
+  <section id="estudio-ia">
+    <div class="sec-head">
+      <div class="sec-icon" style="background:var(--c-violet-bg);color:var(--c-violet)" id="nbIcon"></div>
+      <div><h2>Estudio con IA</h2><p>Tus cuadernos de NotebookLM, uno por asignatura. Pega el enlace de cada cuaderno cuando lo crees.</p></div>
+    </div>
+    <div class="panel">
+      <div class="nb-grid" id="nbGrid"></div>
+      <p class="note">Los enlaces se guardan en este navegador. Crea los cuadernos en <a href="https://notebooklm.google.com" target="_blank" rel="noopener">notebooklm.google.com</a> con tu cuenta y copia aquí su dirección.</p>
     </div>
   </section>
 
@@ -905,6 +925,7 @@ const state = { q:'', course:-1, types:new Set(Object.keys(TYPES)) };
 document.getElementById('essIcon').innerHTML = ic('star');
 document.getElementById('calIcon').innerHTML = ic('cal');
 document.getElementById('subjIcon').innerHTML = ic('cap');
+document.getElementById('nbIcon').innerHTML = ic('book');
 document.getElementById('calPrev').innerHTML = ic('left');
 document.getElementById('calNext').innerHTML = ic('right');
 document.getElementById('dlgClose').innerHTML = ic('x');
@@ -1061,27 +1082,32 @@ function loadJSON(key, def) { try { const v = JSON.parse(localStorage.getItem(ke
 function saveJSON(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { canStore = false; updateStoreNote(); } }
 let subj = loadJSON(SUBJ_KEY, null);
 if (!subj || typeof subj !== 'object' || Array.isArray(subj)) { subj = {}; DEFAULT_MINE.forEach(c => subj[c] = { status:'mat' }); saveJSON(SUBJ_KEY, subj); }
+const PEND_DEFAULT = ['71031010','71031056','7103104-','71901020']; // Cálculo, Estadística, Computadores, Programación
+if (!loadJSON('uned-ia-pend-init', false)) { PEND_DEFAULT.forEach(c => { if (!subj[c] || subj[c].status === 'none' || subj[c].status === 'mat') subj[c] = { status:'pend' }; }); saveJSON(SUBJ_KEY, subj); saveJSON('uned-ia-pend-init', true); }
 let prefs = Object.assign({ onlyMine:true }, loadJSON(PREFS_KEY, {}));
 const saveSubj = () => saveJSON(SUBJ_KEY, subj);
 const savePrefs = () => saveJSON(PREFS_KEY, prefs);
 const STATUS = {
   none: { label:'No matriculada', color:'var(--muted)' },
   mat:  { label:'Matriculada',    color:'var(--c-blue)' },
-  conv: { label:'Convalidada',    color:'var(--c-violet)' },
+  pend: { label:'Pendiente de reconocer', color:'var(--c-amber)' },
+  conv: { label:'Reconocida',     color:'var(--c-violet)' },
   apr:  { label:'Aprobada',       color:'var(--c-green)' },
 };
 const st = code => subj[code] || {};
 const statusOf = code => st(code).status || 'none';
 const visibleExams = () => prefs.onlyMine ? EXAMS.filter(x => statusOf(x.code) === 'mat') : EXAMS;
 function progress() {
-  let apr = 0, conv = 0, mat = 0, sg = 0, se = 0;
+  let apr = 0, conv = 0, pend = 0, mat = 0, sg = 0, se = 0;
   S.forEach(x => {
-    const s = st(x.code);
-    if (s.status === 'apr') { apr += x.e; if (typeof s.grade === 'number') { sg += s.grade * x.e; se += x.e; } }
+    const s = st(x.code), g = typeof s.grade === 'number';
+    if (s.status === 'apr') apr += x.e;
     else if (s.status === 'conv') conv += x.e;
+    else if (s.status === 'pend') pend += x.e;
     else if (s.status === 'mat') mat += x.e;
+    if ((s.status === 'apr' || s.status === 'conv') && g) { sg += s.grade * x.e; se += x.e; }
   });
-  return { apr, conv, mat, avg: se ? sg / se : null };
+  return { apr, conv, pend, mat, avg: se ? sg / se : null };
 }
 const TASK_TYPES = ['pec', 'trabajo', 'otro'];
 const isTask = e => TASK_TYPES.includes(e.type);
@@ -1505,7 +1531,7 @@ chipsEl.addEventListener('click', e => {
 function subjCard(x, q) {
   const T = TYPES[x.t], s = st(x.code), stt = s.status || 'none';
   const badge = stt === 'none' ? '' :
-    `<span class="stb" style="--sc:${STATUS[stt].color}">${stt === 'apr' && typeof s.grade === 'number' ? 'Aprobada · ' + fmt(s.grade) : STATUS[stt].label}</span>`;
+    `<span class="stb" style="--sc:${STATUS[stt].color}">${STATUS[stt].label}${typeof s.grade === 'number' && stt !== 'mat' ? ' · ' + fmt(s.grade) : ''}</span>`;
   const pend = events.filter(e => e.subject === x.code && isTask(e) && !e.done).length;
   return `<button type="button" class="scard${stt === 'apr' || stt === 'conv' ? ' passed' : ''}" data-code="${x.code}" style="--tc:${T.color}" title="Abrir ficha de ${esc(x.n)}">
     <span class="nm">${hl(x.n,q)}</span>
@@ -1613,16 +1639,16 @@ function renderProgress() {
   const p = progress(), done = p.apr + p.conv;
   const pct = x => (x / 240 * 100).toFixed(2) + '%';
   F('progPanel').innerHTML = `
-    <div class="ring" style="--a:${pct(p.apr)};--b:${pct(p.apr + p.conv)};--c:${pct(p.apr + p.conv + p.mat)}">
+    <div class="ring" style="--a:${pct(p.apr)};--b:${pct(p.apr + p.conv)};--p:${pct(p.apr + p.conv + p.pend)};--c:${pct(p.apr + p.conv + p.pend + p.mat)}">
       <b>${Math.round(done / 240 * 100)}%<small>${fmt(done)} / 240 ECTS</small></b>
     </div>
     <div>
       <div class="prog-stats">
-        ${[['Aprobadas', p.apr, 'var(--c-green)'], ['Convalidadas', p.conv, 'var(--c-violet)'], ['Matriculadas', p.mat, 'var(--c-blue)']]
+        ${[['Aprobadas', p.apr, 'var(--c-green)'], ['Reconocidas', p.conv, 'var(--c-violet)'], ['Pendientes de reconocer', p.pend, 'var(--c-amber)'], ['Matriculadas', p.mat, 'var(--c-blue)']]
           .map(([k, v, c]) => `<div class="ps" style="--sc:${c}"><div class="k">${k}</div><div class="v">${fmt(v)}<small>ECTS</small></div></div>`).join('')}
-        <div class="ps" style="--sc:var(--c-amber)"><div class="k">Nota media</div><div class="v">${p.avg == null ? '—' : fmt(p.avg.toFixed(2))}</div></div>
+        <div class="ps" style="--sc:var(--brand)"><div class="k">Nota media</div><div class="v">${p.avg == null ? '—' : fmt(p.avg.toFixed(2))}</div></div>
       </div>
-      <p class="note">Pulsa una asignatura para cambiar su estado (matriculada, convalidada o aprobada con nota). Las convalidadas sin nota no cuentan para la media.</p>
+      <p class="note">Pulsa una asignatura para cambiar su estado y escribir su nota. Las pendientes de reconocer no suman créditos hasta que las marques como reconocidas. Cuentan para la media las aprobadas y reconocidas que tengan nota.</p>
     </div>`;
   F('nSubj').innerHTML = `${fmt(done)}<small>/ 240 ECTS</small>`;
 }
@@ -1656,7 +1682,7 @@ function renderSubj() {
       <span class="lbl">Estado</span>
       <div class="seg" id="sjSeg">${Object.entries(STATUS).map(([k, v]) =>
         `<button type="button" data-s="${k}" style="--sc:${v.color}" aria-pressed="${status === k}">${v.label}</button>`).join('')}</div>
-      ${status === 'apr' ? `<div class="grade-row"><label for="sjGrade">Nota final</label><input id="sjGrade" class="field-in" type="number" min="5" max="10" step="0.1" value="${s.grade ?? ''}" placeholder="—"></div>` : ''}
+      ${['apr','conv','pend'].includes(status) ? `<div class="grade-row"><label for="sjGrade">${status === 'apr' ? 'Nota final' : status === 'conv' ? 'Nota reconocida' : 'Nota prevista'}</label><input id="sjGrade" class="field-in" type="number" min="0" max="10" step="0.1" value="${s.grade ?? ''}" placeholder="—"></div>` : ''}
     </div>
     <div class="links-row">
       <a class="btn primary" href="${guideURL(x.code)}" target="_blank" rel="noopener" title="Página oficial de esta asignatura en la web del grado">${ic('globe')}Web del grado</a>
@@ -1741,13 +1767,13 @@ function updateCalc() {
   F('sjCalcRes').innerHTML = html;
 }
 
-function afterSubjChange() { saveSubj(); renderProgress(); renderSubjects(); renderExams(); renderCalendar(); renderWeek(); renderTutorias(); }
+function afterSubjChange() { renderNotebooks(); saveSubj(); renderProgress(); renderSubjects(); renderExams(); renderCalendar(); renderWeek(); renderTutorias(); }
 F('sjBody').addEventListener('click', e => {
   if (e.target.closest('.ck')) return;
   const seg = e.target.closest('#sjSeg button');
   if (seg) {
     const s = sjState(sjOpen); s.status = seg.dataset.s;
-    if (s.status !== 'apr') delete s.grade;
+    if (s.status === 'none' || s.status === 'mat') delete s.grade;
     afterSubjChange(); renderSubj(); return;
   }
   if (e.target.closest('#sjAddTask')) { const c = sjOpen; subjDlg.close(); openNew(TODAY, null, c); return; }
@@ -1788,7 +1814,26 @@ document.getElementById('subjects').addEventListener('click', e => {
 F('onlyMine').checked = !!prefs.onlyMine;
 F('onlyMine').addEventListener('change', e => { prefs.onlyMine = e.target.checked; savePrefs(); renderExams(); renderCalendar(); renderWeek(); });
 
-function refreshAll() { renderProgress(); renderSubjects(); renderExams(); renderCalendar(); renderWeek(); renderTutorias(); }
+function renderNotebooks() {
+  const nb = prefs.nb || {};
+  const list = S.filter(x => ['mat','pend'].includes(statusOf(x.code)));
+  F('nbGrid').innerHTML = list.map((x, i) => {
+    const u = nb[x.code];
+    return `<div class="nb"><span class="n">${i + 1}</span><div style="min-width:0"><div class="t">${esc(x.n)}</div>${u
+      ? `<div class="a"><a class="btn primary" href="${esc(u)}" target="_blank" rel="noopener">${ic('arrow')}Abrir cuaderno</a><button type="button" class="btn" data-nbedit="${x.code}">Cambiar</button></div>`
+      : `<form data-nb="${x.code}"><input type="url" required placeholder="https://notebooklm.google.com/notebook/…" aria-label="Enlace del cuaderno de ${esc(x.n)}"><button class="btn" type="submit">Guardar</button></form>`}</div></div>`;
+  }).join('');
+}
+F('nbGrid').addEventListener('submit', e => {
+  e.preventDefault(); const f = e.target.closest('form[data-nb]'); if (!f) return;
+  const v = f.querySelector('input').value.trim(); if (!/^https:\/\//.test(v)) return;
+  prefs.nb = Object.assign({}, prefs.nb, { [f.dataset.nb]: v }); savePrefs(); renderNotebooks();
+});
+F('nbGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-nbedit]'); if (!b) return;
+  const nb = Object.assign({}, prefs.nb); delete nb[b.dataset.nbedit]; prefs.nb = nb; savePrefs(); renderNotebooks();
+});
+function refreshAll() { renderNotebooks(); renderProgress(); renderSubjects(); renderExams(); renderCalendar(); renderWeek(); renderTutorias(); }
 
 /* ================= Búsqueda ================= */
 const qEl = document.getElementById('q');
@@ -1801,7 +1846,7 @@ document.addEventListener('keydown', e => {
 
 /* ================= Inicio ================= */
 updateStoreNote();
-renderLinks(); renderLegend(); renderCalendar(); renderExams(); renderTutorias(); renderWeek(); renderProgress(); renderTabs(); renderChips(); renderSubjects();
+renderNotebooks(); renderLinks(); renderLegend(); renderCalendar(); renderExams(); renderTutorias(); renderWeek(); renderProgress(); renderTabs(); renderChips(); renderSubjects();
 </script>
 </body>
 </html>
