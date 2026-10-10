@@ -696,6 +696,26 @@
   @media (max-width: 1100px) { .cal-main, .cal-lower { grid-template-columns: minmax(0, 1fr) !important; } .wv { grid-template-columns: minmax(0, 1fr); } .wv-col { min-height: 0; } }
   .cal-lower .tut-panel { order: 0 !important; }
   .cal-lower .ia-panel { order: 1; }
+  /* Fila lateral del calendario: cuenta atrás · esta semana · próximos */
+  .cal-top3 { display:grid; grid-template-columns:minmax(0,280px) minmax(0,1fr) minmax(0,300px); gap:12px; align-items:stretch; margin-bottom:12px; }
+  .cal-top3 > * { min-width:0; margin:0 !important; }
+  .countdown { border-radius:18px; padding:18px; color:#fff; position:relative; overflow:hidden; background:linear-gradient(140deg,#9d174d,#db2777); box-shadow:var(--shadow); }
+  .countdown::after { content:""; position:absolute; right:-40px; top:-40px; width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,.1); }
+  .countdown .k { font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; opacity:.85; }
+  .countdown .big { font-size:2.6rem; font-weight:800; line-height:1; margin:8px 0 4px; letter-spacing:-.02em; }
+  .countdown .big small { font-size:1rem; font-weight:700; margin-left:4px; }
+  .countdown .what { font-weight:700; font-size:.95rem; }
+  .countdown .when { font-size:.82rem; opacity:.85; }
+  .countdown .first { margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,.25); font-size:.82rem; font-weight:600; position:relative; z-index:1; }
+  .countdown .first b { font-family:"JetBrains Mono", monospace; }
+  .cal-top3 .wk-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; max-height:300px; overflow:auto; }
+  .cal-top3 .wk { height:auto; }
+  .up-panel { position:relative; min-height:300px; padding:0 !important; }
+  .up-in { position:absolute; inset:0; padding:16px; display:flex; flex-direction:column; }
+  .up-in h3 { margin:0 0 12px; font-size:.95rem; font-weight:800; display:flex; justify-content:space-between; align-items:center; }
+  .up-in .up-list { flex:1; min-height:0; overflow:auto; align-content:start; }
+  @media (max-width:1100px) { .cal-top3 { grid-template-columns:minmax(0,1fr); } .up-panel { min-height:280px; } }
+  #notebookGrid { max-height:520px; overflow:auto; padding-right:4px; }
 </style>
 </head>
 <body>
@@ -753,6 +773,17 @@
     <div class="sec-head">
       <div class="sec-icon" style="background:var(--c-rose-bg);color:var(--c-rose)" id="calIcon"></div>
       <div><h2>Mi calendario</h2><p>Mes, exámenes y tu semana de tutorías en un solo sitio. Pulsa un día para ver lo que tiene, añadir o editar.</p></div>
+    </div>
+    <div class="cal-top3">
+      <div class="countdown" id="countdown"></div>
+      <div class="panel week-panel">
+        <div class="ex-head"><div><h3 id="wkTitle">Esta semana</h3><p id="wkSub"></p></div></div>
+        <div class="wk-list" id="wkList"></div>
+      </div>
+      <div class="panel up-panel"><div class="up-in">
+        <h3>Próximos <span class="pill" id="upCount"></span></h3>
+        <div class="up-list" id="upList"></div>
+      </div></div>
     </div>
     <div class="cal-main">
       <div class="panel cal-panel">
@@ -994,6 +1025,7 @@ const SECTIONS = [
     { t:'Proyecto / TFG', d:'Información sobre el Trabajo Fin de Grado', u:'https://www.uned.es/universidad/facultades/informatica/bienvenida/estudiantes/informacion-pfg.html', i:'award' },
   ]},
   { id:'estudio', title:'Recursos de estudio', sub:'Bibliografía y nivelación', icon:'book', color:'violet', links:[
+    { t:'Mi curso en Ágora', d:'Libro del curso en el campus virtual (Ágora)', u:'https://agora.uned.es/mod/book/view.php?id=1003100', i:'bookopen' },
     { t:'Mi GitHub', d:'Cuenta Lordllop: repositorios y proyectos', u:'https://github.com/Lordllop', i:'github' },
     { t:'Mensajes de Ágora', d:'Avisos y mensajes privados de tus cursos', u:'https://agora.uned.es/message/', i:'chat' },
     { t:'Web de Fundamentos de Programación', d:'Prácticas en C±, notas y enunciados (ETSI Informática)', u:'https://www.issi.uned.es/fp/', i:'globe' },
@@ -1430,7 +1462,7 @@ document.getElementById('exWeeks').addEventListener('click', e => {
   document.getElementById('calDays').scrollIntoView({ behavior:'smooth', block:'center' });
 });
 
-function renderCalendar() { renderCal(); }
+function renderCalendar() { renderCal(); if (typeof renderSide === 'function') { renderSide(); renderWeek(); } }
 
 /* Navegación del calendario */
 document.getElementById('calPrev').onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCal(); };
@@ -2115,6 +2147,98 @@ document.addEventListener('keydown', e => {
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
   if (e.key === '/' && !typing && !dlg.open) { e.preventDefault(); qEl.focus(); }
   if (e.key === 'Escape' && document.activeElement === qEl) { qEl.value = ''; qEl.dispatchEvent(new Event('input')); qEl.blur(); }
+});
+
+
+/* ===== Cuenta atrás, esta semana y próximos (lateral) ===== */
+function renderSide() {
+  // Cuenta atrás a la próxima convocatoria
+  const next = OFFICIAL.find(o => o.kind === 'exam' && o.end >= TODAY);
+  const cd = document.getElementById('countdown');
+  if (next) {
+    const d = daysBetween(TODAY, next.start);
+    const s = parse(next.start), e = parse(next.end);
+    const range = `${s.getDate()} ${MON3[s.getMonth()]} – ${e.getDate()} ${MON3[e.getMonth()]} ${e.getFullYear()}`;
+    cd.innerHTML = `<div class="k">Próxima convocatoria</div>
+      <div class="big">${d > 0 ? d + '<small>días</small>' : 'En curso'}</div>
+      <div class="what">${esc(next.title)}</div><div class="when">${range}</div>`;
+    const fx = visibleExams().find(x => x.date >= TODAY);
+    if (fx) {
+      const fd = parse(fx.date);
+      cd.innerHTML += `<div class="first">Tu primer examen: ${DOW3[fd.getDay()]} ${fd.getDate()} ${MON3[fd.getMonth()]} · <b>${fx.time}</b><br>${esc(subjName(fx.code))}</div>`;
+    }
+    cd.style.display = '';
+  } else cd.style.display = 'none';
+
+  // Próximos eventos
+  const up = [
+    ...events.filter(e => e.date >= TODAY && !e.done).map(e => ({ date:e.date, time:e.time||'', title:e.title, sub:EV_TYPES[e.type].label + (e.subject ? ' · ' + subjName(e.subject) : ''), color:EV_TYPES[e.type].color, id:e.id })),
+    ...visibleExams().filter(x => x.date >= TODAY).map(x => ({ date:x.date, time:x.time, title:subjName(x.code), sub:'Examen UNED · Valencia', color:'var(--c-rose)', id:'' })),
+    ...OFFICIAL.filter(o => o.kind === 'exam' && o.start >= TODAY && !EXAMS.some(x => x.date >= o.start && x.date <= o.end)).map(o => ({ date:o.start, time:'', title:o.title, sub:'Calendario oficial UNED', color:KIND_COLOR.exam, id:'' })),
+  ].sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 6);
+
+  document.getElementById('upCount').textContent = events.filter(e => e.date >= TODAY && !e.done).length + ' tuyos';
+  document.getElementById('upList').innerHTML = (events.length ? '' :
+    `<div class="hint">Pulsa cualquier día del calendario para ver lo que tiene y apuntar una PEC, un trabajo o un parcial.</div>`) +
+    up.map(x => {
+      const d = parse(x.date), n = daysBetween(TODAY, x.date);
+      const when = n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : `En ${n} días`;
+      return `<button class="up" style="--ec:${x.color}" data-goto="${x.date}" ${x.id ? `data-id="${esc(x.id)}"` : ''}>
+        <span class="date"><b>${d.getDate()}</b><span>${MON3[d.getMonth()]}</span></span>
+        <span style="min-width:0"><span class="t" style="display:block">${esc(x.title)}</span>
+        <span class="s" style="display:block"><b>${when}</b>${x.time ? ' · ' + esc(x.time) : ''} · ${esc(x.sub)}</span></span>
+      </button>`;
+    }).join('');
+}
+
+document.getElementById('upList').addEventListener('click', e => {
+  const b = e.target.closest('.up'); if (!b) return;
+  if (b.dataset.id) openEdit(b.dataset.id);
+  else { const d = parse(b.dataset.goto); view = new Date(d.getFullYear(), d.getMonth(), 1); renderCal(); document.getElementById('calDays').scrollIntoView({ block:'center' }); }
+});
+
+function renderWeek() {
+  const lim = dkey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7));
+  const late = events.filter(e => isTask(e) && !e.done && e.date < TODAY);
+  const soon = events.filter(e => e.date >= TODAY && e.date <= lim);
+  const exs = visibleExams().filter(x => x.date >= TODAY && x.date <= lim);
+  let tuts = 0; const tutItems = [], nowHM = pad(new Date().getHours()) + ':' + pad(new Date().getMinutes());
+  for (let i = 0; i <= 7; i++) {
+    const d = new Date(today); d.setDate(d.getDate() + i); const k = dkey(d);
+    tutActive(k).filter(x => i > 0 || x.end > nowHM).forEach(x => { tuts++; tutItems.push({ k:k + x.start, html:`<div class="wk" style="--ec:var(--c-cyan)" data-info="${x.code}" data-k="${k}" role="button" tabindex="0">
+        <span class="ico">${ic('users')}</span>
+        <div style="min-width:0"><div class="when">${whenLabel(k)} · ${x.start}</div><div class="ti">${esc(subjName(x.code))}</div><div class="su">Tutoría · ${esc(x.tutor)} · ${esc(x.place)}</div>${x.online ? `<a class="tt-go" href="${x.online}" target="_blank" rel="noopener">${ic('video')}Clase online</a>` : ''}</div>
+      </div>` }); });
+  }
+  const items = [
+    ...tutItems,
+    ...late.map(e => ({ k:e.date + (e.time || ''), html:taskRow(e, true) })),
+    ...soon.map(e => ({ k:e.date + (e.time || ''), html:taskRow(e, false) })),
+    ...exs.map(x => ({ k:x.date + x.time, html:`<div class="wk" style="--ec:var(--c-rose)" data-goto="${x.date}" role="button" tabindex="0">
+        <span class="ico">${ic('clock')}</span>
+        <div style="min-width:0"><div class="when">${whenLabel(x.date)} · ${x.time}</div><div class="ti">${esc(subjName(x.code))}</div><div class="su">Examen UNED · Valencia</div></div>
+      </div>` })),
+  ].sort((a, b) => a.k.localeCompare(b.k));
+  const pending = soon.filter(e => isTask(e) && !e.done).length;
+  F('wkTitle').innerHTML = ic('list') + 'Esta semana';
+  F('wkSub').innerHTML = [
+    late.length ? `<b style="color:var(--c-rose)">${late.length} vencida${late.length > 1 ? 's' : ''}</b>` : '',
+    `${pending} pendiente${pending === 1 ? '' : 's'}`,
+    tuts ? `${tuts} tutoría${tuts > 1 ? 's' : ''}` : '',
+    exs.length ? `${exs.length} ${exs.length > 1 ? 'exámenes' : 'examen'}` : '',
+  ].filter(Boolean).join(' · ');
+  F('wkList').innerHTML = items.length ? items.map(x => x.html).join('')
+    : `<div class="wk-empty">Nada en los próximos 7 días. Tus tutorías, exámenes, PEC y trabajos aparecerán aquí.</div>`;
+}
+F('wkList').addEventListener('click', e => {
+  if (e.target.closest('.ck') || e.target.closest('a')) return;
+  const r = e.target.closest('.wk'); if (!r) return;
+  if (r.dataset.info) openInfo(r.dataset.info, r.dataset.k);
+  else if (r.dataset.id) openEdit(r.dataset.id);
+  else if (r.dataset.goto) { const d = parse(r.dataset.goto); view = new Date(d.getFullYear(), d.getMonth(), 1); renderCal(); openDay(r.dataset.goto); }
+});
+F('wkList').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('wk')) { e.preventDefault(); e.target.click(); }
 });
 
 /* ================= Inicio ================= */
